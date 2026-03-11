@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 场景美术提示词生成器 (团队协作完整版)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
+        .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
+        h2 { color: #569cd6; margin: 0;}
+        .btn-group { display: flex; gap: 10px; }
+        .lang-btn { background-color: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.3s;}
+        .lang-btn:disabled { background-color: #888; cursor: not-allowed; }
+        .reset-btn { background-color: #d16969; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;}
+        
+        .engine-toggle { display: flex; gap: 10px; margin-bottom: 25px; background: #2d2d30; padding: 10px; border-radius: 8px; border: 1px solid #444;}
+        .engine-btn { flex: 1; padding: 12px; text-align: center; background: #1e1e1e; border: 1px solid #555; border-radius: 6px; cursor: pointer; font-weight: bold; color: #aaa; transition: all 0.2s;}
+        .engine-btn.active { background: #007acc; color: white; border-color: #007acc; box-shadow: 0 0 10px rgba(0,122,204,0.5);}
+        .engine-desc { font-size: 12px; font-weight: normal; margin-top: 4px; color: #ddd;}
+
+        .form-group { margin-bottom: 20px; background: #252526; padding: 15px; border-radius: 8px; border: 1px solid #333;}
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #9cdcfe; }
+        input[type="text"], select { width: 100%; padding: 10px; background-color: #1e1e1e; color: #d4d4d4; border: 1px solid #3c3c3c; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+        
+        .tags-container { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag { background-color: #2d2d30; border: 1px solid #555; color: #ce9178; padding: 5px 12px; border-radius: 15px; font-size: 12px; cursor: pointer; transition: all 0.2s; user-select: none; display: flex; align-items: center; }
+        .tag:hover { background-color: #3e3e42; border-color: #888; }
+        .tag.active { background-color: #007acc; color: white; border-color: #007acc; }
+        
+        .tag-del { display: none; margin-left: 6px; color: #ff6b6b; font-weight: bold; font-size: 14px; padding: 0 4px; border-radius: 50%; }
+        .tag-del:hover { background-color: #ff6b6b; color: #fff; }
+        .admin-mode .tag-del { display: inline-block; }
+        
+        .tag-add { display: none; background: #1e1e1e; color: #4CAF50; border: 1px dashed #4CAF50; font-weight: bold; }
+        .tag-add:hover { background: #4CAF50; color: white; }
+        .admin-mode .tag-add { display: inline-flex; }
+        
+        .tag-clear { background-color: #5a1d1d; color: #f48771; border-color: #5a1d1d; }
+
+        /* MJ参数专属标签样式 */
+        .mj-tag { background-color: #2d2030; color: #c586c0; border-color: #c586c0; cursor: help; }
+        .mj-tag:hover { background-color: #4b3050; border-color: #e2a0dd; }
+        .mj-tag.active { background-color: #c586c0; color: #1e1e1e; border-color: #c586c0; }
+        
+        .output-box { background-color: #1e1e1e; border: 1px solid #3c3c3c; padding: 15px; border-radius: 8px; margin-top: 20px; font-family: Consolas, monospace; color: #ce9178; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; min-height: 60px; }
+        .copy-btn { background-color: #007acc; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; width: 100%; font-weight: bold; }
+        .copy-btn:hover { background-color: #005f9e; }
+        .premise-box { border-color: #007acc; background: #1e2a35; }
+        .mj-params-box { border-color: #c586c0; background: #2d2030; display: none; }
+        .mj-params-box.visible { display: block; }
+        .tips-text { font-size: 12px; color: #888; margin-top: 8px; }
+
+        /* 悬浮管理面板 */
+        .floating-admin { position: fixed; bottom: 20px; right: 20px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;}
+        .admin-panel { display: none; background: #252526; border: 1px solid #444; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); flex-direction: column; gap: 8px; width: 180px;}
+        .admin-mode .admin-panel { display: flex; }
+        .admin-panel button { background: #333; color: #ddd; border: 1px solid #555; padding: 8px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 13px;}
+        .admin-panel button:hover { background: #555; color: white;}
+        .admin-btn-toggle { background-color: #444; color: white; border: 2px solid #666; padding: 10px 15px; border-radius: 30px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.3s; font-size: 14px;}
+        .admin-btn-toggle:hover { background-color: #666; }
+        .admin-btn-toggle.active { background-color: #d16969; border-color: #ff8c8c; }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h2 data-zh="🛒 场景美术提示词生成器" data-en="🛒 Environment Prompt Builder">🛒 场景美术提示词生成器</h2>
+        <div class="btn-group">
+            <button class="reset-btn" onclick="resetAllInputs()" data-zh="🧹 一键清空" data-en="🧹 Clear Inputs">🧹 一键清空</button>
+            <button class="lang-btn" onclick="toggleLang()" id="langBtn">EN / 中文</button>
+        </div>
+    </div>
+    
+    <div class="engine-toggle">
+        <div class="engine-btn active" id="btn-gemini" onclick="setEngine('gemini')">
+            ✨ Gemini 模式
+            <div class="engine-desc" data-zh="自然语言语法，带有逻辑推演指令" data-en="Natural language logic">自然语言语法，带有逻辑推演指令</div>
+        </div>
+        <div class="engine-btn" id="btn-mj" onclick="setEngine('mj')">
+            🎨 Midjourney 模式
+            <div class="engine-desc" data-zh="词缀阵列排版，自动转英文" data-en="Tag-based array">词缀阵列排版，自动转英文</div>
+        </div>
+    </div>
+
+    <div class="form-group premise-box" id="premiseGroup">
+        <label data-zh="0. 工作流指令前提：" data-en="0. Workflow Premise:">0. 工作流指令前提：</label>
+        <select id="premise" onchange="generatePrompt()">
+            <option value="strict" data-zh="【图生图 - 底图细化】严格锁定构图与透视" data-en="[I2I] Strict composition lock">【图生图 - 底图细化】严格锁定构图与透视</option>
+            <option value="creative" data-zh="【文生图 - 原创发散】从零开始，自由发挥构图" data-en="[T2I] Generate from scratch">【文生图 - 原创发散】从零开始，自由发挥构图</option>
+            <option value="none" data-zh="【无前提】直接开始描述画面" data-en="[None] Direct prompt">【无前提】直接开始描述画面</option>
+        </select>
+    </div>
+
+    <div id="dynamic-fields"></div>
+
+    <div class="form-group mj-params-box" id="mjParamsGroup">
+        <label data-zh="7. Midjourney 专属后缀参数：" data-en="7. Midjourney Suffix:">7. Midjourney 专属后缀参数：</label>
+        <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="generatePrompt()">
+        <div class="tags-container" id="mjTagsContainer">
+            </div>
+        <div class="tips-text" data-zh="💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。" data-en="💡 Tip: Hover over tags to see what they do. Mutually exclusive params will auto-replace.">💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。</div>
+    </div>
+
+    <h3 data-zh="✨ 最终生成的 Prompt：" data-en="✨ Final Prompt:">✨ 最终生成的 Prompt：</h3>
+    <div id="resultPrompt" class="output-box"></div>
+    <button class="copy-btn" onclick="copyFinalPrompt()" data-zh="📋 一键复制 Prompt" data-en="📋 Copy Prompt">📋 一键复制 Prompt</button>
+
+    <div class="floating-admin">
+        <div class="admin-panel">
+            <button onclick="exportTagsToFile()">📤 导出配置 (.txt)</button>
+            <button onclick="document.getElementById('fileImportInput').click()">📥 导入配置 (.txt)</button>
+            <button onclick="resetTagsToDefault()" style="color: #ff6b6b; margin-top: 10px;">⚠️ 恢复出厂词库</button>
+        </div>
+        <button class="admin-btn-toggle" id="adminToggleBtn" onclick="toggleAdminMode()">⚙️ 管理模式</button>
+    </div>
+    <input type="file" id="fileImportInput" accept=".txt,.json" style="display: none;" onchange="importTagsFromFile(event)">
+
+    <script>
+        const DEFAULT_TAGS = {
+            perspective: [{ en: "2.5D side-scrolling game level", zh: "2.5D横版过关" }, { en: "isometric projection", zh: "等距俯视" }, { en: "first-person view", zh: "第一人称视角" }],
+            scene: [{ en: "massive mechanical junkyard", zh: "巨大机械废铁厂" }, { en: "abandoned cyberpunk slum", zh: "废弃赛博贫民窟" }, { en: "ancient temple ruins", zh: "远古神庙废墟" }],
+            material: [{ en: "realistic PBR materials", zh: "逼真PBR材质" }, { en: "heavy rust and weathering", zh: "重度生锈与风化" }, { en: "high contrast between metal and organics", zh: "金属与植被质感碰撞" }],
+            details: [{ en: "broken android bodies", zh: "破碎的仿生人躯体" }, { en: "rusted giant gears", zh: "生锈的巨大齿轮" }, { en: "glowing green moss", zh: "发光的绿色苔藓" }],
+            lighting: [{ en: "God rays filtering through", zh: "神明光/丁达尔" }, { en: "volumetric mist rolling", zh: "翻滚的体积雾" }, { en: "cinematic cold lighting", zh: "电影级清冷光影" }],
+            style: [{ en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染" }, { en: "anime-influenced realism", zh: "二次元写实风" }, { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格" }, { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格" }]
+        };
+
+        // MJ参数词库升级为 V7 和 Niji 7
+        const MJ_PARAMS_CONFIG = [
+            { param: "--ar 16:9", zh: "横屏环境 16:9", en: "Env Ratio 16:9", desc_zh: "设定画面为16:9宽屏，最适合全景和场景环境。", desc_en: "16:9 widescreen ratio, best for environments." },
+            { param: "--ar 9:16", zh: "竖屏角色 9:16", en: "Portrait 9:16", desc_zh: "设定画面为9:16竖屏，最适合角色立绘和单体展示。", desc_en: "9:16 portrait ratio, best for characters." },
+            { param: "--v 7.0", zh: "V7.0 写实模型", en: "V7.0 Realism", desc_zh: "调用最新高保真写实模型，语义与光影更强。", desc_en: "Call the latest high-fidelity realism model with better semantics." },
+            { param: "--niji 7", zh: "Niji7 二次元", en: "Niji7 Anime", desc_zh: "调用最新动漫与二次元插画专属模型。", desc_en: "Call the latest dedicated anime & illustration model." },
+            { param: "--stylize 250", zh: "中等风格化 (250)", en: "Stylize 250", desc_zh: "提高AI的美学修饰程度，让画面更有艺术感。", desc_en: "Increase AI's aesthetic styling for a more artistic look." },
+            { param: "--stylize 750", zh: "极高风格化 (750)", en: "Stylize 750", desc_zh: "强制让AI极大程度地美化画面，色彩和光影会极其夸张。", desc_en: "Extreme aesthetic styling, heavily beautified lighting/color." },
+            { param: "--chaos 20", zh: "创意发散 (Chaos 20)", en: "Chaos 20", desc_zh: "提高初始四张网格图的构图差异性，适合用来找灵感。", desc_en: "Increase variety across the 4 grid images, good for brainstorming." },
+            { param: "--weird 200", zh: "奇特构图 (Weird)", en: "Weird 200", desc_zh: "让AI生成前所未见、突破常规审美的奇特画面。", desc_en: "Force AI to generate unconventional and strange compositions." },
+            { param: "--tile", zh: "无缝材质贴图", en: "Seamless Tile", desc_zh: "生成首尾相接、可无限拼接的纹理贴图（适合地编做材质）。", desc_en: "Generate repeating, seamless texture patterns." },
+            { param: "--no people", zh: "负面: 画面无人", en: "No People", desc_zh: "要求AI在场景中绝对不要画出人物。", desc_en: "Force the scene to contain absolutely no humans." }
+        ];
+
+        const FIELD_LABELS = {
+            perspective: { zh: "1. 摄影视角与游戏玩法：", en: "1. Perspective:", id: "perspective" },
+            scene: { zh: "2. 核心场景描述：", en: "2. Core Scene:", id: "coreScene" },
+            material: { zh: "3. 材质细化方向：", en: "3. Material Focus:", id: "materialFocus" },
+            details: { zh: "4. 具体物件细节补充：", en: "4. Specific Details:", id: "details" },
+            lighting: { zh: "5. 灯光与氛围：", en: "5. Lighting & Mood:", id: "lighting" },
+            style: { zh: "6. 美术渲染管线：", en: "6. Art Style & Render:", id: "artStyle" }
+        };
+
+        let currentEngine = 'gemini'; 
+        let currentLang = 'zh';
+
+        let activeTags = null;
+        try {
+            const localData = localStorage.getItem('team_prompt_tags_v3');
+            if (localData) activeTags = JSON.parse(localData);
+            else activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+        } catch (e) {
+            activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+        }
+
+        function renderAllFields() {
+            let container = document.getElementById('dynamic-fields');
+            let html = '';
+            for (let key in FIELD_LABELS) {
+                let label = currentLang === 'zh' ? FIELD_LABELS[key].zh : FIELD_LABELS[key].en;
+                let inputId = FIELD_LABELS[key].id;
+                html += `
+                <div class="form-group">
+                    <label>${label}</label>
+                    <input type="text" id="${inputId}" placeholder="${currentLang === 'zh' ? '选填，直接输入自定义词或点击下方标签' : 'Optional'}" oninput="generatePrompt()">
+                    <div class="tags-container" id="${key}Tags">
+                        ${activeTags[key].map((item, index) => {
+                            let text = currentLang === 'zh' ? item.zh : item.en;
+                            return `<span class="tag" onclick="toggleTag('${inputId}', '${item.en}', '${item.zh}')">
+                                        ${text}
+                                        <span class="tag-del" onclick="event.stopPropagation(); deleteTag('${key}', ${index})" title="删除此词条">×</span>
+                                    </span>`;
+                        }).join('')}
+                        <span class="tag tag-add" onclick="addNewTag('${key}')">➕ ${currentLang === 'zh' ? '添加' : 'Add'}</span>
+                        <span class="tag tag-clear" onclick="clearInput('${inputId}')" title="清空该栏">🗑️</span>
+                    </div>
+                </div>`;
+            }
+            container.innerHTML = html;
+
+            let mjHtml = '';
+            MJ_PARAMS_CONFIG.forEach(item => {
+                let text = currentLang === 'zh' ? `${item.param} (${item.zh})` : `${item.param} (${item.en})`;
+                let desc = currentLang === 'zh' ? item.desc_zh : item.desc_en;
+                mjHtml += `<span class="tag mj-tag" title="${desc}" onclick="toggleMjTag('${item.param}')">${text}</span>`;
+            });
+            document.getElementById('mjTagsContainer').innerHTML = mjHtml;
+        }
+
+        function toggleMjTag(param) {
+            const input = document.getElementById('mjParams');
+            let val = " " + input.value + " ";
+            if (val.includes(" " + param + " ")) {
+                val = val.replace(" " + param + " ", " ");
+            } else {
+                if (param.startsWith('--ar ')) val = val.replace(/ --ar \S+ /g, ' ');
+                if (param.startsWith('--v ') || param.startsWith('--niji ')) val = val.replace(/ --v \S+ /g, ' ').replace(/ --niji \S+ /g, ' ');
+                if (param.startsWith('--stylize ')) val = val.replace(/ --stylize \S+ /g, ' ').replace(/ --s \S+ /g, ' ');
+                if (param.startsWith('--chaos ')) val = val.replace(/ --chaos \S+ /g, ' ').replace(/ --c \S+ /g, ' ');
+                if (param.startsWith('--weird ')) val = val.replace(/ --weird \S+ /g, ' ').replace(/ --w \S+ /g, ' ');
+                val += param + " ";
+            }
+            input.value = val.replace(/\s+/g, ' ').trim();
+            generatePrompt();
+        }
+
+        async function autoTranslate(text, sourceLang, targetLang) {
+            if (!text) return "";
+            try {
+                const sl = sourceLang === 'zh' ? 'zh-CN' : 'en';
+                const tl = targetLang === 'zh' ? 'zh-CN' : 'en';
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                return data[0][0][0]; 
+            } catch (error) {
+                return text; 
+            }
+        }
+
+        async function toggleLang() {
+            const oldLang = currentLang;
+            currentLang = currentLang === 'zh' ? 'en' : 'zh';
+            
+            const btn = document.getElementById('langBtn');
+            btn.innerText = currentLang === 'zh' ? "翻译中..." : "Translating...";
+            btn.disabled = true;
+
+            let savedValues = {};
+            for (let key in FIELD_LABELS) {
+                let inputId = FIELD_LABELS[key].id;
+                let inputEl = document.getElementById(inputId);
+                
+                if (inputEl && inputEl.value) {
+                    let parts = inputEl.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+                    let translatedParts = [];
+
+                    for (let part of parts) {
+                        let found = activeTags[key].find(item => item.zh === part || item.en === part);
+                        if (found) {
+                            translatedParts.push(currentLang === 'zh' ? found.zh : found.en);
+                        } else {
+                            let translated = await autoTranslate(part, oldLang, currentLang);
+                            translatedParts.push(translated);
+                        }
+                    }
+                    savedValues[inputId] = translatedParts.join(currentLang === 'zh' ? '，' : ', ');
+                }
+            }
+
+            document.querySelectorAll('[data-zh]').forEach(el => el.innerText = el.getAttribute(`data-${currentLang}`));
+            renderAllFields();
+
+            for (let key in FIELD_LABELS) {
+                let inputId = FIELD_LABELS[key].id;
+                if (savedValues[inputId]) document.getElementById(inputId).value = savedValues[inputId];
+            }
+
+            generatePrompt();
+            btn.innerText = "EN / 中文";
+            btn.disabled = false;
+        }
+
+        function toggleAdminMode() {
+            document.body.classList.toggle('admin-mode');
+            const btn = document.getElementById('adminToggleBtn');
+            btn.classList.toggle('active');
+            btn.innerText = document.body.classList.contains('admin-mode') ? "✖ 退出管理模式" : "⚙️ 管理模式";
+        }
+
+        function addNewTag(category) {
+            let zh = prompt("📝 请输入【中文】短语 (例如: 赛博朋克)：");
+            if (!zh) return;
+            let en = prompt("📝 请输入对应的【英文】短语 (例如: cyberpunk)：");
+            if (!en) return;
+            activeTags[category].push({en: en.trim(), zh: zh.trim()});
+            saveTagsToLocal();
+        }
+
+        function deleteTag(category, index) {
+            if(confirm("确定要永久删除这个短语吗？")) {
+                activeTags[category].splice(index, 1);
+                saveTagsToLocal();
+            }
+        }
+
+        function saveTagsToLocal() {
+            localStorage.setItem('team_prompt_tags_v3', JSON.stringify(activeTags));
+            renderAllFields();
+            generatePrompt();
+        }
+
+        function exportTagsToFile() {
+            try {
+                const dataStr = JSON.stringify(activeTags, null, 2);
+                const blob = new Blob([dataStr], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "场景提示词配置.txt";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (e) { alert("导出文件失败：" + e.message); }
+        }
+
+        function importTagsFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(e.target.result);
+                    } catch (err) {
+                        let cleanCode = e.target.result.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+                        while (cleanCode.length % 4 !== 0) { cleanCode += "="; }
+                        parsed = JSON.parse(decodeURIComponent(atob(cleanCode)));
+                    }
+                    if(parsed && parsed.perspective && parsed.scene && parsed.material) {
+                        activeTags = parsed;
+                        saveTagsToLocal();
+                        alert("🎉 词库配置文件导入成功！");
+                    } else { alert("❌ 文件内容格式不符合要求。"); }
+                } catch (err) { alert("❌ 解析文件失败。"); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function resetTagsToDefault() {
+            if(confirm("⚠️ 将清空自定义短语恢复默认，确定继续吗？")) {
+                activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+                saveTagsToLocal();
+                alert("已恢复默认。");
+            }
+        }
+
+        function toggleTag(inputId, en, zh) {
+            const val = currentLang === 'zh' ? zh : en;
+            const input = document.getElementById(inputId);
+            let parts = input.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+            if (parts.includes(val)) parts = parts.filter(s => s !== val);
+            else parts.push(val);
+            input.value = parts.join(currentLang === 'zh' ? '，' : ', ');
+            generatePrompt(); 
+        }
+
+        function generatePrompt() {
+            const p = document.getElementById("perspective")?.value.trim() || "";
+            const s = document.getElementById("coreScene")?.value.trim() || "";
+            const m = document.getElementById("materialFocus")?.value.trim() || "";
+            const d = document.getElementById("details")?.value.trim() || "";
+            const l = document.getElementById("lighting")?.value.trim() || "";
+            const st = document.getElementById("artStyle")?.value.trim() || "";
+
+            let prompt = "";
+            if (currentEngine === 'gemini') {
+                const pk = document.getElementById("premise").value;
+                if (pk === 'strict') {
+                    prompt += (currentLang === 'zh' ? "严格以提供的图像构图和结构为基础。保持所有主要资产的确切透视和布局。请将这张底图细化打磨成一张高精度的" : "Use the provided image composition and structure as a strict base. Maintain the exact perspective and layout of all major assets. Please fully refine and polish this base image into a high-fidelity ");
+                    prompt += (p ? p : (currentLang === 'zh' ? "场景" : "environment")) + (currentLang === 'zh' ? "概念图" : " concept art");
+                    if (s) prompt += (currentLang === 'zh' ? `，核心主题为：${s}。` : `, featuring: ${s}. `);
+                    else if (!m && !d && !l && !st) prompt += (currentLang === 'zh' ? "，请自由发挥补充真实的细节与光影氛围。" : ", freely improvising realistic details and atmosphere. ");
+                    else prompt += (currentLang === 'zh' ? "。" : ". ");
+                } else if (pk === 'creative') {
+                    let pStr = p ? (currentLang === 'zh' ? `一张高度详细的${p}概念图，展示了` : `A highly detailed ${p} concept art of `) : (currentLang === 'zh' ? "一张电影级画质的场景图，展示了" : "A highly detailed cinematic shot of ");
+                    prompt += pStr + (s ? s : (currentLang === 'zh' ? "一个由你自由发挥的精彩场景" : "a highly imaginative scene, feel free to improvise")) + (currentLang === 'zh' ? "。" : ". ");
+                }
+                if(m) prompt += (currentLang === 'zh' ? `材质设定：${m}。` : `Material settings: ${m}. `);
+                if(d) prompt += (currentLang === 'zh' ? `画面需包含细节：${d}。` : `Include details like: ${d}. `);
+                if(l) prompt += (currentLang === 'zh' ? `光影与氛围：${l}。` : `Lighting & Mood: ${l}. `);
+                if(st) prompt += (currentLang === 'zh' ? `渲染管线与风格：${st}。` : `Render style: ${st}. `);
+            } else {
+                let mjTags = [p, s, d, m, l, st];
+                let mjClean = mjTags.filter(text => text !== "");
+                prompt = mjClean.join(", ");
+                let params = document.getElementById("mjParams").value.trim();
+                if(params) prompt += " " + params;
+            }
+            
+            document.getElementById("resultPrompt").innerText = prompt;
+            
+            document.querySelectorAll('.tags-container .tag').forEach(tag => {
+                if(tag.classList.contains('tag-add') || tag.classList.contains('tag-clear') || tag.classList.contains('mj-tag')) return;
+                const inputId = tag.parentElement.previousElementSibling.id;
+                if(inputId) {
+                    const val = tag.childNodes[0].nodeValue.trim(); 
+                    const active = document.getElementById(inputId).value.split(/[,，]/).map(s => s.trim()).includes(val);
+                    tag.classList.toggle('active', active);
+                }
+            });
+
+            if (currentEngine === 'mj') {
+                const mjParamStr = " " + document.getElementById("mjParams").value + " ";
+                document.querySelectorAll('.mj-tag').forEach(tag => {
+                    const rawParam = tag.innerText.split(' (')[0].trim();
+                    tag.classList.toggle('active', mjParamStr.includes(" " + rawParam + " "));
+                });
+            }
+        }
+
+        function setEngine(e) { currentEngine = e; document.getElementById('btn-gemini').classList.toggle('active', e === 'gemini'); document.getElementById('btn-mj').classList.toggle('active', e === 'mj'); document.getElementById('premiseGroup').style.display = (e === 'gemini' ? 'block' : 'none'); document.getElementById('mjParamsGroup').classList.toggle('visible', e === 'mj'); generatePrompt(); }
+        
+        // 核心更新：重置时恢复为 V7
+        function resetAllInputs() { if(confirm(currentLang === 'zh' ? '确认清空所有输入框内容吗？' : 'Clear all inputs?')) { ['perspective', 'coreScene', 'materialFocus', 'details', 'lighting', 'artStyle'].forEach(id => { document.getElementById(id).value = ""; }); document.getElementById("mjParams").value = "--ar 16:9 --v 7.0"; generatePrompt(); } }
+        
+        function clearInput(id) { document.getElementById(id).value = ''; generatePrompt(); }
+        function copyFinalPrompt() { navigator.clipboard.writeText(document.getElementById("resultPrompt").innerText); const btn = document.querySelector('.copy-btn'); const oldText = btn.innerText; btn.innerText = currentLang === 'zh' ? "✅ 复制成功！" : "✅ Copied!"; setTimeout(() => { btn.innerText = oldText; }, 2000); }
+        
+        window.onload = () => { renderAllFields(); generatePrompt(); };
+    </script>
+</body>
+</html>
