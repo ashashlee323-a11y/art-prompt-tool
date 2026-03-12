@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 场景美术提示词生成器 </title>
+    <title>AI 场景美术提示词生成器</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
         .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
@@ -99,7 +99,7 @@
 
     <div class="form-group mj-params-box" id="mjParamsGroup">
         <label data-zh="8. Midjourney 专属后缀参数：" data-en="8. Midjourney Suffix:">8. Midjourney 专属后缀参数：</label>
-        <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="generatePrompt()">
+        <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="generatePrompt()" autocomplete="off">
         <div class="tags-container" id="mjTagsContainer">
             </div>
         <div class="tips-text" data-zh="💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。" data-en="💡 Tip: Hover over tags to see what they do. Mutually exclusive params will auto-replace.">💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。</div>
@@ -232,11 +232,14 @@
                 html += `
                 <div class="form-group">
                     <label>${label}</label>
-                    <input type="text" id="${inputId}" placeholder="${currentLang === 'zh' ? '选填，直接输入自定义词或点击下方标签' : 'Optional'}" oninput="generatePrompt()">
+                    <input type="text" id="${inputId}" placeholder="${currentLang === 'zh' ? '选填，直接输入自定义词或点击下方标签' : 'Optional'}" oninput="generatePrompt()" autocomplete="off">
                     <div class="tags-container" id="${key}Tags">
                         ${activeTags[key].map((item, index) => {
                             let text = currentLang === 'zh' ? item.zh : item.en;
-                            return `<span class="tag" onclick="toggleTag('${inputId}', '${item.en}', '${item.zh}')">
+                            // 🌟 防冲突：转义词条中可能存在的单引号，防止 HTML onclick 截断报错
+                            let safeEn = item.en.replace(/'/g, "\\'");
+                            let safeZh = item.zh.replace(/'/g, "\\'");
+                            return `<span class="tag" onclick="toggleTag('${inputId}', '${safeEn}', '${safeZh}')">
                                         ${text}
                                         <span class="tag-del" onclick="event.stopPropagation(); deleteTag('${key}', ${index})" title="删除此词条">×</span>
                                     </span>`;
@@ -444,8 +447,18 @@
                     if (s) prompt += (currentLang === 'zh' ? `，核心主题为：${s}。` : `, featuring: ${s}. `);
                     else prompt += (currentLang === 'zh' ? "。" : ". ");
                 } else if (pk === 'creative') {
-                    let pStr = p ? (currentLang === 'zh' ? `一张高度详细的${p}概念图，展示了` : `A highly detailed ${p} concept art of `) : (currentLang === 'zh' ? "一张电影级画质的场景图，展示了" : "A highly detailed cinematic shot of ");
-                    prompt += pStr + (s ? s : (currentLang === 'zh' ? "一个由你自由发挥的精彩场景" : "a highly imaginative scene, feel free to improvise")) + (currentLang === 'zh' ? "。" : ". ");
+                    prompt += (currentLang === 'zh' ? "一张电影级画质的场景图，展示了" : "A cinematic quality environment concept art, featuring ");
+                    if (p || s) {
+                        if (p && s) {
+                            prompt += (currentLang === 'zh' ? `${p}视角的${s}。` : `a ${p} view of ${s}. `);
+                        } else if (p) {
+                            prompt += (currentLang === 'zh' ? `${p}视角的画面。` : `a ${p} view scene. `);
+                        } else if (s) {
+                            prompt += (currentLang === 'zh' ? `${s}。` : `${s}. `);
+                        }
+                    } else {
+                        prompt += (currentLang === 'zh' ? "一个由你自由发挥的精彩场景。" : "a highly imaginative scene, feel free to improvise. ");
+                    }
                 }
 
                 // --- 2. 后半句：绝对隔离拼接逻辑 ---
