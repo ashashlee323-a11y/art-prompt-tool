@@ -59,6 +59,9 @@
         .admin-btn-toggle { background-color: #444; color: white; border: 2px solid #666; padding: 10px 15px; border-radius: 30px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: all 0.3s; font-size: 14px;}
         .admin-btn-toggle:hover { background-color: #666; }
         .admin-btn-toggle.active { background-color: #d16969; border-color: #ff8c8c; }
+        
+        /* 🛡️ 版权水印样式 */
+        .watermark { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); color: rgba(255, 255, 255, 0.3); font-size: 13px; letter-spacing: 1px; pointer-events: none; user-select: none; z-index: 9999; font-family: Consolas, monospace; }
     </style>
 </head>
 <body>
@@ -86,6 +89,7 @@
         <label data-zh="0. 工作流指令前提：" data-en="0. Workflow Premise:">0. 工作流指令前提：</label>
         <select id="premise" onchange="generatePrompt()">
             <option value="strict" data-zh="【图生图 - 底图细化】严格锁定构图与透视" data-en="[I2I] Strict composition lock">【图生图 - 底图细化】严格锁定构图与透视</option>
+            <option value="time_conversion" data-zh="【图生图 - 时段转换】保持构图，重绘光影" data-en="[I2I] Time/Weather Conversion">【图生图 - 时段转换】保持构图，重绘光影</option>
             <option value="creative" data-zh="【文生图 - 原创发散】从零开始，自由发挥构图" data-en="[T2I] Generate from scratch">【文生图 - 原创发散】从零开始，自由发挥构图</option>
             <option value="none" data-zh="【无前提】直接开始描述画面" data-en="[None] Direct prompt">【无前提】直接开始描述画面</option>
         </select>
@@ -94,7 +98,7 @@
     <div id="dynamic-fields"></div>
 
     <div class="form-group mj-params-box" id="mjParamsGroup">
-        <label data-zh="7. Midjourney 专属后缀参数：" data-en="7. Midjourney Suffix:">7. Midjourney 专属后缀参数：</label>
+        <label data-zh="8. Midjourney 专属后缀参数：" data-en="8. Midjourney Suffix:">8. Midjourney 专属后缀参数：</label>
         <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="generatePrompt()">
         <div class="tags-container" id="mjTagsContainer">
             </div>
@@ -119,13 +123,13 @@
         const DEFAULT_TAGS = {
             perspective: [{ en: "2.5D side-scrolling game level", zh: "2.5D横版过关" }, { en: "isometric projection", zh: "等距俯视" }, { en: "first-person view", zh: "第一人称视角" }],
             scene: [{ en: "massive mechanical junkyard", zh: "巨大机械废铁厂" }, { en: "abandoned cyberpunk slum", zh: "废弃赛博贫民窟" }, { en: "ancient temple ruins", zh: "远古神庙废墟" }],
+            time: [{ en: "dawn", zh: "黎明" }, { en: "early morning", zh: "清晨" }, { en: "morning", zh: "上午" }, { en: "noon", zh: "正午" }, { en: "afternoon", zh: "下午" }, { en: "dusk", zh: "黄昏" }, { en: "sunset", zh: "日落" }, { en: "night", zh: "夜晚" }, { en: "midnight", zh: "深夜" }, { en: "golden hour sunset", zh: "黄昏金光" }, { en: "overcast rainy day", zh: "阴雨绵绵" }],
             material: [{ en: "realistic PBR materials", zh: "逼真PBR材质" }, { en: "heavy rust and weathering", zh: "重度生锈与风化" }, { en: "high contrast between metal and organics", zh: "金属与植被质感碰撞" }],
             details: [{ en: "broken android bodies", zh: "破碎的仿生人躯体" }, { en: "rusted giant gears", zh: "生锈的巨大齿轮" }, { en: "glowing green moss", zh: "发光的绿色苔藓" }],
             lighting: [{ en: "God rays filtering through", zh: "神明光/丁达尔" }, { en: "volumetric mist rolling", zh: "翻滚的体积雾" }, { en: "cinematic cold lighting", zh: "电影级清冷光影" }],
             style: [{ en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染" }, { en: "anime-influenced realism", zh: "二次元写实风" }, { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格" }, { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格" }]
         };
 
-        // MJ参数词库升级为 V7 和 Niji 7
         const MJ_PARAMS_CONFIG = [
             { param: "--ar 16:9", zh: "横屏环境 16:9", en: "Env Ratio 16:9", desc_zh: "设定画面为16:9宽屏，最适合全景和场景环境。", desc_en: "16:9 widescreen ratio, best for environments." },
             { param: "--ar 9:16", zh: "竖屏角色 9:16", en: "Portrait 9:16", desc_zh: "设定画面为9:16竖屏，最适合角色立绘和单体展示。", desc_en: "9:16 portrait ratio, best for characters." },
@@ -142,10 +146,11 @@
         const FIELD_LABELS = {
             perspective: { zh: "1. 摄影视角与游戏玩法：", en: "1. Perspective:", id: "perspective" },
             scene: { zh: "2. 核心场景描述：", en: "2. Core Scene:", id: "coreScene" },
-            material: { zh: "3. 材质细化方向：", en: "3. Material Focus:", id: "materialFocus" },
-            details: { zh: "4. 具体物件细节补充：", en: "4. Specific Details:", id: "details" },
-            lighting: { zh: "5. 灯光与氛围：", en: "5. Lighting & Mood:", id: "lighting" },
-            style: { zh: "6. 美术渲染管线：", en: "6. Art Style & Render:", id: "artStyle" }
+            time: { zh: "3. 时段与天气：", en: "3. Time & Weather:", id: "timeOfDay" },
+            material: { zh: "4. 材质细化方向：", en: "4. Material Focus:", id: "materialFocus" },
+            details: { zh: "5. 具体物件细节补充：", en: "5. Specific Details:", id: "details" },
+            lighting: { zh: "6. 灯光与氛围：", en: "6. Lighting & Mood:", id: "lighting" },
+            style: { zh: "7. 美术渲染管线：", en: "7. Art Style & Render:", id: "artStyle" }
         };
 
         let currentEngine = 'gemini'; 
@@ -154,8 +159,14 @@
         let activeTags = null;
         try {
             const localData = localStorage.getItem('team_prompt_tags_v3');
-            if (localData) activeTags = JSON.parse(localData);
-            else activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+            if (localData) {
+                activeTags = JSON.parse(localData);
+                if (!activeTags.time) {
+                    activeTags.time = JSON.parse(JSON.stringify(DEFAULT_TAGS.time));
+                }
+            } else {
+                activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+            }
         } catch (e) {
             activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
         }
@@ -358,6 +369,7 @@
         function generatePrompt() {
             const p = document.getElementById("perspective")?.value.trim() || "";
             const s = document.getElementById("coreScene")?.value.trim() || "";
+            const t = document.getElementById("timeOfDay")?.value.trim() || "";
             const m = document.getElementById("materialFocus")?.value.trim() || "";
             const d = document.getElementById("details")?.value.trim() || "";
             const l = document.getElementById("lighting")?.value.trim() || "";
@@ -366,22 +378,42 @@
             let prompt = "";
             if (currentEngine === 'gemini') {
                 const pk = document.getElementById("premise").value;
+                
+                // --- 1. 前半句：指令意图 ---
                 if (pk === 'strict') {
                     prompt += (currentLang === 'zh' ? "严格以提供的图像构图和结构为基础。保持所有主要资产的确切透视和布局。请将这张底图细化打磨成一张高精度的" : "Use the provided image composition and structure as a strict base. Maintain the exact perspective and layout of all major assets. Please fully refine and polish this base image into a high-fidelity ");
                     prompt += (p ? p : (currentLang === 'zh' ? "场景" : "environment")) + (currentLang === 'zh' ? "概念图" : " concept art");
                     if (s) prompt += (currentLang === 'zh' ? `，核心主题为：${s}。` : `, featuring: ${s}. `);
-                    else if (!m && !d && !l && !st) prompt += (currentLang === 'zh' ? "，请自由发挥补充真实的细节与光影氛围。" : ", freely improvising realistic details and atmosphere. ");
+                    else if (!t && !m && !d && !l && !st) prompt += (currentLang === 'zh' ? "，请自由发挥补充真实的细节与光影氛围。" : ", freely improvising realistic details and atmosphere. ");
+                    else prompt += (currentLang === 'zh' ? "。" : ". ");
+                } else if (pk === 'time_conversion') {
+                    prompt += (currentLang === 'zh' ? "严格保持原始构图、建筑结构和物体位置。彻底移除原图光源，根据新的时段要求重新计算全局光照、阴影和环境反射。请将这张底图无缝转换为" : "Strictly maintain the original composition, architectural structures, and object placement. Remove all original light sources and recalculate global illumination, shadows, and reflections based on the new time of day. Seamlessly convert this base image into ");
+                    prompt += (p ? p : (currentLang === 'zh' ? "场景" : "environment")) + (currentLang === 'zh' ? "概念图" : " concept art");
+                    if (s) prompt += (currentLang === 'zh' ? `，核心主题为：${s}。` : `, featuring: ${s}. `);
                     else prompt += (currentLang === 'zh' ? "。" : ". ");
                 } else if (pk === 'creative') {
                     let pStr = p ? (currentLang === 'zh' ? `一张高度详细的${p}概念图，展示了` : `A highly detailed ${p} concept art of `) : (currentLang === 'zh' ? "一张电影级画质的场景图，展示了" : "A highly detailed cinematic shot of ");
                     prompt += pStr + (s ? s : (currentLang === 'zh' ? "一个由你自由发挥的精彩场景" : "a highly imaginative scene, feel free to improvise")) + (currentLang === 'zh' ? "。" : ". ");
                 }
-                if(m) prompt += (currentLang === 'zh' ? `材质设定：${m}。` : `Material settings: ${m}. `);
-                if(d) prompt += (currentLang === 'zh' ? `画面需包含细节：${d}。` : `Include details like: ${d}. `);
-                if(l) prompt += (currentLang === 'zh' ? `光影与氛围：${l}。` : `Lighting & Mood: ${l}. `);
-                if(st) prompt += (currentLang === 'zh' ? `渲染管线与风格：${st}。` : `Render style: ${st}. `);
+
+                // --- 2. 后半句：绝对隔离拼接逻辑 ---
+                if (pk === 'time_conversion') {
+                    // 时段转换专用：更符合“打光师”身份的文案
+                    if(t) prompt += (currentLang === 'zh' ? `⚠️目标时段必须转换为：${t}。` : `⚠️Target time must be: ${t}. `);
+                    if(m) prompt += (currentLang === 'zh' ? `材质要求：${m}。` : `Materials: ${m}. `);
+                    if(d) prompt += (currentLang === 'zh' ? `引入新物理细节：${d}。` : `Introduce details: ${d}. `);
+                    if(l) prompt += (currentLang === 'zh' ? `重绘光影氛围：${l}。` : `New Lighting & Mood: ${l}. `);
+                    if(st) prompt += (currentLang === 'zh' ? `渲染后期风格：${st}。` : `Post-process style: ${st}. `);
+                } else {
+                    // 之前的模式：百分之百保留原有的经典拼装文案，不改任何标点！
+                    if(t) prompt += (currentLang === 'zh' ? `时段与天气：${t}。` : `Time & Weather: ${t}. `);
+                    if(m) prompt += (currentLang === 'zh' ? `材质设定：${m}。` : `Material settings: ${m}. `);
+                    if(d) prompt += (currentLang === 'zh' ? `画面需包含细节：${d}。` : `Include details like: ${d}. `);
+                    if(l) prompt += (currentLang === 'zh' ? `光影与氛围：${l}。` : `Lighting & Mood: ${l}. `);
+                    if(st) prompt += (currentLang === 'zh' ? `渲染管线与风格：${st}。` : `Render style: ${st}. `);
+                }
             } else {
-                let mjTags = [p, s, d, m, l, st];
+                let mjTags = [p, s, t, m, d, l, st];
                 let mjClean = mjTags.filter(text => text !== "");
                 prompt = mjClean.join(", ");
                 let params = document.getElementById("mjParams").value.trim();
@@ -411,15 +443,14 @@
 
         function setEngine(e) { currentEngine = e; document.getElementById('btn-gemini').classList.toggle('active', e === 'gemini'); document.getElementById('btn-mj').classList.toggle('active', e === 'mj'); document.getElementById('premiseGroup').style.display = (e === 'gemini' ? 'block' : 'none'); document.getElementById('mjParamsGroup').classList.toggle('visible', e === 'mj'); generatePrompt(); }
         
-        // 核心更新：重置时恢复为 V7
-        function resetAllInputs() { if(confirm(currentLang === 'zh' ? '确认清空所有输入框内容吗？' : 'Clear all inputs?')) { ['perspective', 'coreScene', 'materialFocus', 'details', 'lighting', 'artStyle'].forEach(id => { document.getElementById(id).value = ""; }); document.getElementById("mjParams").value = "--ar 16:9 --v 7.0"; generatePrompt(); } }
+        function resetAllInputs() { if(confirm(currentLang === 'zh' ? '确认清空所有输入框内容吗？' : 'Clear all inputs?')) { ['perspective', 'coreScene', 'timeOfDay', 'materialFocus', 'details', 'lighting', 'artStyle'].forEach(id => { document.getElementById(id).value = ""; }); document.getElementById("mjParams").value = "--ar 16:9 --v 7.0"; generatePrompt(); } }
         
         function clearInput(id) { document.getElementById(id).value = ''; generatePrompt(); }
         function copyFinalPrompt() { navigator.clipboard.writeText(document.getElementById("resultPrompt").innerText); const btn = document.querySelector('.copy-btn'); const oldText = btn.innerText; btn.innerText = currentLang === 'zh' ? "✅ 复制成功！" : "✅ Copied!"; setTimeout(() => { btn.innerText = oldText; }, 2000); }
         
         window.onload = () => { renderAllFields(); generatePrompt(); };
     </script>
-<div class="watermark" data-zh="copyright@我的名字" data-en="copyright@gouji">
+<div class="watermark" data-zh="copyright@gouji" data-en="copyright@gouji">
     copyright@gouji
 </div>
 </body>
