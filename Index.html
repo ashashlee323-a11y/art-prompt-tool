@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 场景美术提示词生成器 (团队协作完整版)</title>
+    <title>AI 场景美术提示词生成器 </title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
         .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
@@ -120,14 +120,66 @@
     <input type="file" id="fileImportInput" accept=".txt,.json" style="display: none;" onchange="importTagsFromFile(event)">
 
     <script>
+        // 🛡️ 控制台版权声明 (按 F12 可见)
+        console.log("%c⚠️ 知识产权声明", "color: #ff6b6b; font-size: 20px; font-weight: bold; background: #2d2d30; padding: 5px 10px; border-radius: 4px;");
+        console.log("%c此工具独立架构与开发。未经许可，严禁抄袭源码或二次打包分发。", "color: #9cdcfe; font-size: 14px; line-height: 2;");
+
         const DEFAULT_TAGS = {
-            perspective: [{ en: "2.5D side-scrolling game level", zh: "2.5D横版过关" }, { en: "isometric projection", zh: "等距俯视" }, { en: "first-person view", zh: "第一人称视角" }],
-            scene: [{ en: "massive mechanical junkyard", zh: "巨大机械废铁厂" }, { en: "abandoned cyberpunk slum", zh: "废弃赛博贫民窟" }, { en: "ancient temple ruins", zh: "远古神庙废墟" }],
-            time: [{ en: "dawn", zh: "黎明" }, { en: "early morning", zh: "清晨" }, { en: "morning", zh: "上午" }, { en: "noon", zh: "正午" }, { en: "afternoon", zh: "下午" }, { en: "dusk", zh: "黄昏" }, { en: "sunset", zh: "日落" }, { en: "night", zh: "夜晚" }, { en: "midnight", zh: "深夜" }, { en: "golden hour sunset", zh: "黄昏金光" }, { en: "overcast rainy day", zh: "阴雨绵绵" }],
-            material: [{ en: "realistic PBR materials", zh: "逼真PBR材质" }, { en: "heavy rust and weathering", zh: "重度生锈与风化" }, { en: "high contrast between metal and organics", zh: "金属与植被质感碰撞" }],
-            details: [{ en: "broken android bodies", zh: "破碎的仿生人躯体" }, { en: "rusted giant gears", zh: "生锈的巨大齿轮" }, { en: "glowing green moss", zh: "发光的绿色苔藓" }],
-            lighting: [{ en: "God rays filtering through", zh: "神明光/丁达尔" }, { en: "volumetric mist rolling", zh: "翻滚的体积雾" }, { en: "cinematic cold lighting", zh: "电影级清冷光影" }],
-            style: [{ en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染" }, { en: "anime-influenced realism", zh: "二次元写实风" }, { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格" }, { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格" }]
+            perspective: [
+                { en: "2.5D side-scrolling game level", zh: "2.5D横版过关" },
+                { en: "isometric projection", zh: "等距俯视" },
+                { en: "first-person view", zh: "第一人称视角" },
+                { en: "Cinematic wide angle", zh: "电影级广角" },
+                { en: "Low-angle shot", zh: "低角度/仰拍" },
+                { en: "Bird's-eye view", zh: "鸟瞰视角" }
+            ],
+            scene: [
+                { en: "massive mechanical junkyard", zh: "巨大机械废铁厂" },
+                { en: "abandoned cyberpunk slum", zh: "废弃赛博贫民窟" },
+                { en: "ancient temple ruins", zh: "远古神庙废墟" }
+            ],
+            time: [
+                { en: "dawn", zh: "黎明" },
+                { en: "early morning", zh: "清晨" },
+                { en: "noon", zh: "正午" },
+                { en: "dusk", zh: "黄昏" },
+                { en: "sunset", zh: "日落" },
+                { en: "night", zh: "夜晚" },
+                { en: "midnight", zh: "深夜" }
+            ],
+            material: [
+                { en: "realistic PBR materials", zh: "写实PBR材质" },
+                { en: "stylized PBR materials", zh: "风格化PBR材质" }
+            ],
+            details: [
+                { en: "broken android bodies", zh: "破碎的仿生人躯体" },
+                { en: "rusted giant gears", zh: "生锈的巨大齿轮" },
+                { en: "glowing green moss", zh: "发光的绿色苔藓" }
+            ],
+            lighting: [
+                { en: "God rays filtering through", zh: "神明光/丁达尔" },
+                { en: "Volumetric lighting", zh: "体积光" },
+                { en: "Rim lighting", zh: "轮廓光" },
+                { en: "Dappled sunlight", zh: "斑驳阳光/林间光影" },
+                { en: "Overcast lighting", zh: "柔和漫反射" },
+                { en: "Golden Hour", zh: "黄金时刻" },
+                { en: "Blue Hour", zh: "蓝色时刻" },
+                { en: "Clear transparency", zh: "极高透明度" }
+            ],
+            style: [
+                { en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染" },
+                { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格" },
+                { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格" },
+                { en: "Anime Background Art", zh: "日本动画背景美术" },
+                { en: "Makoto Shinkai Style", zh: "新海诚风格" },
+                { en: "cinematic film grain", zh: "电影级胶片颗粒" },
+                { en: "chromatic aberration", zh: "边缘色散" },
+                { en: "shallow depth of field", zh: "浅景深" },
+                { en: "vignetting", zh: "暗角" },
+                { en: "Ray tracing", zh: "光线追踪" },
+                { en: "Ultra-detailed background", zh: "极高精度细节" },
+                { en: "Global Illumination", zh: "全局光照" }
+            ]
         };
 
         const MJ_PARAMS_CONFIG = [
@@ -158,7 +210,7 @@
 
         let activeTags = null;
         try {
-            const localData = localStorage.getItem('team_prompt_tags_v3');
+            const localData = localStorage.getItem('team_prompt_tags_v4');
             if (localData) {
                 activeTags = JSON.parse(localData);
                 if (!activeTags.time) {
@@ -303,7 +355,7 @@
         }
 
         function saveTagsToLocal() {
-            localStorage.setItem('team_prompt_tags_v3', JSON.stringify(activeTags));
+            localStorage.setItem('team_prompt_tags_v4', JSON.stringify(activeTags));
             renderAllFields();
             generatePrompt();
         }
