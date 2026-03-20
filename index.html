@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 场景美术提示词生成器 (团队协作完整版)</title>
+    <title>AIGC场景美术提示词生成器</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
         .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
@@ -106,7 +105,7 @@
 
     <div class="form-group mj-params-box" id="mjParamsGroup">
         <label>9. Midjourney 专属后缀参数：</label>
-        <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="triggerGenerate()" autocomplete="off">
+        <input type="text" id="mjParams" value="--ar 16:9 --v 7.0 --iw 1.5 --sref " oninput="triggerGenerate()" autocomplete="off">
         <div class="tags-container" id="mjTagsContainer"></div>
     </div>
 
@@ -211,6 +210,7 @@
             ]
         };
 
+        // 🌟 在预设标签中加入 --iw 1.5 和 --sref
         const MJ_PARAMS_CONFIG = [
             { param: "--ar 16:9", zh: "横屏环境 16:9" },
             { param: "--ar 9:16", zh: "竖屏角色 9:16" },
@@ -220,7 +220,9 @@
             { param: "--stylize 750", zh: "极高风格化 (750)" },
             { param: "--chaos 20", zh: "创意发散 (Chaos 20)" },
             { param: "--weird 200", zh: "奇特构图 (Weird)" },
-            { param: "--tile", zh: "无缝材质贴图" }
+            { param: "--tile", zh: "无缝材质贴图" },
+            { param: "--iw 1.5", zh: "垫图高权重 (1.5)" },
+            { param: "--sref", zh: "风格参考 (sref)" }
         ];
 
         const FIELD_LABELS = {
@@ -235,7 +237,6 @@
         };
 
         let currentEngine = 'gemini'; 
-        // 🌟 默认输出语言更改为 zh
         let outputLang = 'zh'; 
         let activeTags = null;
         let translationCache = {};
@@ -245,12 +246,12 @@
         let savedEnText = "";
 
         try {
-            let localData = localStorage.getItem('team_prompt_tags_v14');
+            let localData = localStorage.getItem('team_prompt_tags_v15');
             if (localData) {
                 activeTags = JSON.parse(localData);
             } else {
                 activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
-                localStorage.setItem('team_prompt_tags_v14', JSON.stringify(activeTags));
+                localStorage.setItem('team_prompt_tags_v15', JSON.stringify(activeTags));
             }
         } catch (e) {
             activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
@@ -332,6 +333,10 @@
                 if (param.startsWith('--stylize ')) val = val.replace(/ --stylize \S+ /g, ' ').replace(/ --s \S+ /g, ' ');
                 if (param.startsWith('--chaos ')) val = val.replace(/ --chaos \S+ /g, ' ').replace(/ --c \S+ /g, ' ');
                 if (param.startsWith('--weird ')) val = val.replace(/ --weird \S+ /g, ' ').replace(/ --w \S+ /g, ' ');
+                // 🌟 新增互斥处理：替换旧的 --iw 和 --sref
+                if (param.startsWith('--iw ')) val = val.replace(/ --iw \S+ /g, ' ');
+                if (param.startsWith('--sref')) val = val.replace(/ --sref( \S+)? /g, ' '); 
+                
                 val += param + " ";
             }
             input.value = val.replace(/\s+/g, ' ').trim();
@@ -637,7 +642,8 @@
                 ['perspective', 'coreScene', 'timeOfDay', 'materialFocus', 'details', 'lighting', 'artStyle', 'negativePrompt'].forEach(id => { 
                     document.getElementById(id).value = ""; 
                 }); 
-                document.getElementById("mjParams").value = "--ar 16:9 --v 7.0"; 
+                // 🌟 恢复默认清空时也包含 --iw 和 --sref
+                document.getElementById("mjParams").value = "--ar 16:9 --v 7.0 --iw 1.5 --sref "; 
                 isManualLocked = false;
                 savedZhText = "";
                 savedEnText = "";
