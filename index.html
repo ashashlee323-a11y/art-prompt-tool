@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 场景美术提示词生成器</title>
+    <title>AIGC场景美术提示词生成器 </title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
         .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
@@ -45,7 +45,9 @@
         .lang-toggle-bar button { background: transparent; color: #888; border: none; padding: 8px 16px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; }
         .lang-toggle-bar button.active { background: #007acc; color: white; }
         
-        .output-box { background-color: #1e1e1e; border: 1px solid #3c3c3c; padding: 15px; border-radius: 8px; font-family: Consolas, monospace; color: #ce9178; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; min-height: 60px; }
+        textarea.output-box { width: 100%; background-color: #1e1e1e; border: 1px solid #3c3c3c; padding: 15px; border-radius: 8px; font-family: Consolas, monospace; color: #ce9178; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 15px; min-height: 100px; resize: vertical; outline: none; transition: border-color 0.3s; box-sizing: border-box; }
+        textarea.output-box:focus { border-color: #007acc; box-shadow: 0 0 8px rgba(0,122,204,0.3); }
+        
         .copy-btn { background-color: #007acc; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; width: 100%; font-weight: bold; }
         .copy-btn:hover { background-color: #005f9e; }
         .premise-box { border-color: #007acc; background: #1e2a35; }
@@ -63,10 +65,13 @@
         
         .watermark { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); color: rgba(255, 255, 255, 0.3); font-size: 13px; letter-spacing: 1px; pointer-events: none; user-select: none; z-index: 9999; font-family: Consolas, monospace; }
         
-        /* 增加一个翻译中提示的小动画 */
         .translating-indicator { font-size: 12px; color: #888; margin-left: 10px; display: none; }
         .translating-indicator.visible { display: inline-block; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+        .lock-indicator { font-size: 12px; color: #d16969; background: rgba(209,105,105,0.15); padding: 4px 8px; border-radius: 12px; font-weight: normal; border: 1px solid #d16969; margin-left: 10px;}
+        .unlock-btn { background: #444; color: #ddd; border: 1px solid #666; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.2s; margin-left: 8px;}
+        .unlock-btn:hover { background: #d16969; color: white; border-color: #ff8c8c;}
     </style>
 </head>
 <body>
@@ -106,14 +111,19 @@
     </div>
 
     <div class="output-header-bar">
-        <h3>✨ 最终生成的 Prompt：<span id="translate-status" class="translating-indicator">翻译中...</span></h3>
+        <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+            <h3>✨ 最终生成的 Prompt：</h3>
+            <span id="translate-status" class="translating-indicator">翻译中...</span>
+            <span id="lock-status" class="lock-indicator" style="display: none;">🔒 已锁定手动修改</span>
+            <button id="btn-unlock" class="unlock-btn" style="display: none;" onclick="unlockPrompt()">🔄 恢复自动同步</button>
+        </div>
         <div class="lang-toggle-bar">
-            <button id="btn-out-en" class="active" onclick="setOutputLang('en')">EN 英文输出</button>
             <button id="btn-out-zh" onclick="setOutputLang('zh')">ZH 中文输出</button>
+            <button id="btn-out-en" class="active" onclick="setOutputLang('en')">EN 英文输出</button>
         </div>
     </div>
     
-    <div id="resultPrompt" class="output-box"></div>
+    <textarea id="resultPrompt" class="output-box" rows="5"></textarea>
     <button class="copy-btn" onclick="copyFinalPrompt()">📋 一键复制 Prompt</button>
 
     <div class="floating-admin">
@@ -129,7 +139,6 @@
     <script>
         console.log("%c⚠️ 知识产权声明", "color: #ff6b6b; font-size: 20px; font-weight: bold; background: #2d2d30; padding: 5px 10px; border-radius: 4px;");
         
-        // 彻底复原为你指定的【场景提示词配置(6).txt】的无注释版净版词库
         const DEFAULT_TAGS = {
             perspective: [
                 { en: "2.5D side-scrolling game level", zh: "2.5D横版过关" },
@@ -228,21 +237,56 @@
         let currentEngine = 'gemini'; 
         let outputLang = 'en'; 
         let activeTags = null;
-        
-        // 🌟 翻译缓存池：避免对同一个自造词重复请求 API
         let translationCache = {};
+        
+        // 🌟 状态控制变量
+        let isManualLocked = false; 
+        let savedZhText = "";
+        let savedEnText = "";
 
         try {
-            // 升级至 V10 强制清洗旧注释并应用新词库
-            let localData = localStorage.getItem('team_prompt_tags_v10');
+            let localData = localStorage.getItem('team_prompt_tags_v13');
             if (localData) {
                 activeTags = JSON.parse(localData);
             } else {
                 activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
-                localStorage.setItem('team_prompt_tags_v10', JSON.stringify(activeTags));
+                localStorage.setItem('team_prompt_tags_v13', JSON.stringify(activeTags));
             }
         } catch (e) {
             activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
+        }
+
+        window.onload = () => { 
+            renderAllFields(); 
+            triggerGenerate(); 
+            
+            document.getElementById('resultPrompt').addEventListener('input', function() {
+                if (!isManualLocked) {
+                    isManualLocked = true;
+                    document.getElementById('lock-status').style.display = 'inline-block';
+                    document.getElementById('btn-unlock').style.display = 'inline-block';
+                }
+                
+                // 🌟 分别记录各语言的草稿，切断自动同步
+                if (outputLang === 'zh') {
+                    savedZhText = this.value;
+                    savedEnText = ""; // 只要改了中文，清空英文草稿，下次切EN时强制重翻
+                } else {
+                    savedEnText = this.value;
+                    // 注意：这里没有清空 savedZhText，保留了中文原样！
+                }
+            });
+        };
+
+        function unlockPrompt() {
+            if(confirm("⚠️ 恢复自动同步将覆盖你刚才手动润色的所有内容，确定继续吗？")) {
+                isManualLocked = false;
+                savedZhText = "";
+                savedEnText = "";
+                document.getElementById('lock-status').style.display = 'none';
+                document.getElementById('btn-unlock').style.display = 'none';
+                triggerGenerate(); 
+            }
         }
 
         function renderAllFields() {
@@ -296,23 +340,19 @@
             triggerGenerate();
         }
 
-        // 🌟 核心：带 API 补全的异步翻译引擎
         async function translateToEn(text, category) {
             if (!text) return "";
             let parts = text.split(/[,，]/).map(s => s.trim()).filter(Boolean);
             let transParts = [];
             
             for (let part of parts) {
-                // 1. 先在词库里找
                 let found = activeTags[category]?.find(t => t.zh === part);
                 if (found) {
                     transParts.push(found.en);
                 } else {
-                    // 2. 词库没有（用户自定义词），查缓存
                     if (translationCache[part]) {
                         transParts.push(translationCache[part]);
                     } else {
-                        // 3. 缓存没有，调用 Google API 自动翻译
                         try {
                             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=${encodeURIComponent(part)}`;
                             const response = await fetch(url);
@@ -321,7 +361,7 @@
                             translationCache[part] = translated;
                             transParts.push(translated);
                         } catch (e) {
-                            transParts.push(part); // 如果 API 失败，保留原文防崩
+                            transParts.push(part); 
                         }
                     }
                 }
@@ -329,11 +369,51 @@
             return transParts.join(", ");
         }
 
-        function setOutputLang(lang) {
+        async function setOutputLang(lang) {
+            if (outputLang === lang) return; 
             outputLang = lang;
-            document.getElementById('btn-out-en').classList.toggle('active', lang === 'en');
             document.getElementById('btn-out-zh').classList.toggle('active', lang === 'zh');
-            triggerGenerate();
+            document.getElementById('btn-out-en').classList.toggle('active', lang === 'en');
+
+            if (isManualLocked) {
+                const resultBox = document.getElementById("resultPrompt");
+                
+                if (lang === 'en') {
+                    // 🌟 切英文：如果有缓存直接用，没有则读取中文框翻译
+                    if (savedEnText) {
+                        resultBox.value = savedEnText;
+                    } else {
+                        const textToTranslate = savedZhText || resultBox.value;
+                        if (textToTranslate.trim() !== "") {
+                            const statusIndicator = document.getElementById("translate-status");
+                            statusIndicator.innerText = "翻译手动修改内容...";
+                            statusIndicator.classList.add('visible');
+                            try {
+                                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=en&dt=t&q=${encodeURIComponent(textToTranslate)}`;
+                                const response = await fetch(url);
+                                const data = await response.json();
+                                let translatedText = "";
+                                if (data && data[0]) {
+                                    data[0].forEach(seg => { if (seg[0]) translatedText += seg[0]; });
+                                }
+                                savedEnText = translatedText;
+                                resultBox.value = savedEnText;
+                            } catch(e) {
+                                console.error("Manual translation error:", e);
+                            }
+                            statusIndicator.innerText = "翻译中...";
+                            statusIndicator.classList.remove('visible');
+                        }
+                    }
+                } else if (lang === 'zh') {
+                    // 🌟 切中文：绝对不翻译！只展示刚才存好的中文原稿
+                    if (savedZhText) {
+                        resultBox.value = savedZhText;
+                    }
+                }
+            } else {
+                triggerGenerate();
+            }
         }
 
         function toggleAdminMode() {
@@ -360,7 +440,7 @@
         }
 
         function saveTagsToLocal() {
-            localStorage.setItem('team_prompt_tags_v10', JSON.stringify(activeTags));
+            localStorage.setItem('team_prompt_tags_v13', JSON.stringify(activeTags));
             renderAllFields();
             triggerGenerate();
         }
@@ -423,20 +503,18 @@
             triggerGenerate(); 
         }
 
-        // 🌟 防抖触发器：用户连续打字时不会疯狂请求 API
         let promptTimeout;
         function triggerGenerate() {
             clearTimeout(promptTimeout);
-            promptTimeout = setTimeout(generatePrompt, 300); // 停顿 300 毫秒后才会执行拼装
+            promptTimeout = setTimeout(generatePrompt, 300); 
         }
 
-        let currentGenerateId = 0; // 🌟 异步竞态锁
+        let currentGenerateId = 0; 
 
         async function generatePrompt() {
             const genId = ++currentGenerateId;
             const statusIndicator = document.getElementById("translate-status");
 
-            // 1. 抓取中文输入
             const p_zh = document.getElementById("perspective")?.value.trim() || "";
             const s_zh = document.getElementById("coreScene")?.value.trim() || "";
             const t_zh = document.getElementById("timeOfDay")?.value.trim() || "";
@@ -448,9 +526,8 @@
 
             let p = p_zh, s = s_zh, t = t_zh, m = m_zh, d = d_zh, l = l_zh, st = st_zh, neg = neg_zh;
 
-            // 2. 如果切了英文，进行底层静默翻译
             if (outputLang === 'en') {
-                statusIndicator.classList.add('visible'); // 显示翻译中...
+                statusIndicator.classList.add('visible'); 
                 p = await translateToEn(p_zh, 'perspective');
                 s = await translateToEn(s_zh, 'scene');
                 t = await translateToEn(t_zh, 'time');
@@ -461,7 +538,6 @@
                 neg = await translateToEn(neg_zh, 'negative');
             }
 
-            // 如果在此期间用户又打了新的字，就废弃旧请求，防止内容错乱
             if (currentGenerateId !== genId) return;
             statusIndicator.classList.remove('visible');
 
@@ -535,7 +611,9 @@
                 if(params) prompt += " " + params;
             }
             
-            document.getElementById("resultPrompt").innerText = prompt;
+            if (!isManualLocked) {
+                document.getElementById("resultPrompt").value = prompt;
+            }
             
             document.querySelectorAll('.tags-container .tag').forEach(tag => {
                 if(tag.classList.contains('tag-add') || tag.classList.contains('tag-clear') || tag.classList.contains('mj-tag')) return;
@@ -564,14 +642,18 @@
                     document.getElementById(id).value = ""; 
                 }); 
                 document.getElementById("mjParams").value = "--ar 16:9 --v 7.0"; 
+                isManualLocked = false;
+                savedZhText = "";
+                savedEnText = "";
+                document.getElementById('lock-status').style.display = 'none';
+                document.getElementById('btn-unlock').style.display = 'none';
                 triggerGenerate(); 
             } 
         }
         
         function clearInput(id) { document.getElementById(id).value = ''; triggerGenerate(); }
-        function copyFinalPrompt() { navigator.clipboard.writeText(document.getElementById("resultPrompt").innerText); const btn = document.querySelector('.copy-btn'); const oldText = btn.innerText; btn.innerText = "✅ 复制成功！"; setTimeout(() => { btn.innerText = oldText; }, 2000); }
+        function copyFinalPrompt() { navigator.clipboard.writeText(document.getElementById("resultPrompt").value); const btn = document.querySelector('.copy-btn'); const oldText = btn.innerText; btn.innerText = "✅ 复制成功！"; setTimeout(() => { btn.innerText = oldText; }, 2000); }
         
-        window.onload = () => { renderAllFields(); triggerGenerate(); };
     </script>
 <div class="watermark">
     copyright@gouji
