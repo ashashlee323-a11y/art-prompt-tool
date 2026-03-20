@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 场景美术提示词生成器</title>
+    <title>AIGC场景美术提示词生成器 </title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e1e; color: #d4d4d4; max-width: 900px; margin: 40px auto; padding: 20px; transition: all 0.3s ease; padding-bottom: 80px; }
         .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;}
@@ -41,7 +40,7 @@
         
         .tag-clear { background-color: #5a1d1d; color: #f48771; border-color: #5a1d1d; }
 
-        .mj-tag { background-color: #2d2030; color: #c586c0; border-color: #c586c0; cursor: help; }
+        .mj-tag { background-color: #2d2030; color: #c586c0; border-color: #c586c0; cursor: pointer; }
         .mj-tag:hover { background-color: #4b3050; border-color: #e2a0dd; }
         .mj-tag.active { background-color: #c586c0; color: #1e1e1e; border-color: #c586c0; }
         
@@ -51,7 +50,6 @@
         .premise-box { border-color: #007acc; background: #1e2a35; }
         .mj-params-box { border-color: #c586c0; background: #2d2030; display: none; }
         .mj-params-box.visible { display: block; }
-        .tips-text { font-size: 12px; color: #888; margin-top: 8px; }
 
         .floating-admin { position: fixed; bottom: 20px; right: 20px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;}
         .admin-panel { display: none; background: #252526; border: 1px solid #444; padding: 12px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); flex-direction: column; gap: 8px; width: 180px;}
@@ -102,7 +100,6 @@
         <label data-zh="9. Midjourney 专属后缀参数：" data-en="9. Midjourney Suffix:">9. Midjourney 专属后缀参数：</label>
         <input type="text" id="mjParams" value="--ar 16:9 --v 7.0" oninput="generatePrompt()" autocomplete="off">
         <div class="tags-container" id="mjTagsContainer"></div>
-        <div class="tips-text" data-zh="💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。" data-en="💡 Tip: Hover over tags to see what they do. Mutually exclusive params will auto-replace.">💡 提示：将鼠标悬停在标签上可查看参数作用。互斥参数会自动替换。</div>
     </div>
 
     <h3 data-zh="✨ 最终生成的 Prompt：" data-en="✨ Final Prompt:">✨ 最终生成的 Prompt：</h3>
@@ -124,87 +121,86 @@
         
         const DEFAULT_TAGS = {
             perspective: [
-                { en: "2.5D side-scrolling game level", zh: "2.5D横版过关", desc_zh: "💡 锁定Z轴的类平台跳跃游戏视角，常用于展现场景横向的层次与叙事。", desc_en: "💡 Locks Z-axis, perfect for platformer-style environmental storytelling." },
-                { en: "isometric projection", zh: "等距俯视", desc_zh: "💡 经典上帝视角（如暗黑破坏神、纪念碑谷），没有近大远小的透视形变，极具工艺感。", desc_en: "💡 God's-eye view with no perspective distortion, highly crafted look." },
-                { en: "first-person view", zh: "第一人称视角", desc_zh: "💡 代入感极强，强调玩家眼前的近景细节和空间压迫感。", desc_en: "💡 High immersion, emphasizes foreground details and spatial pressure." },
-                { en: "Cinematic wide angle", zh: "电影级广角", desc_zh: "💡 视野辽阔，能容纳更多场景元素，常用于开场Establishing Shot（建立镜头）。", desc_en: "💡 Expansive field of view, ideal for establishing shots." },
-                { en: "Low-angle shot", zh: "低角度/仰拍", desc_zh: "💡 镜头自下而上，使建筑物或机甲显得更加巨大、极具威严与压迫感。", desc_en: "💡 Camera looking up, making architecture or mechs look massive and imposing." },
-                { en: "Bird's-eye view", zh: "鸟瞰视角", desc_zh: "💡 从正上方往下俯拍，常用于展现城市规划、迷宫地形或宏大阵型。", desc_en: "💡 Top-down shot, useful for showing city layouts or mazes." },
-                { en: "24mm wide-angle lens", zh: "24mm广角镜头", desc_zh: "💡 真实摄影参数。适合展现宏大的场景全貌与强烈的空间透视感。", desc_en: "💡 Real camera param. Best for grand environments and strong spatial perspective." },
-                { en: "85mm telephoto lens", zh: "85mm长焦镜头", desc_zh: "💡 真实摄影参数。空间压缩感强，适合聚焦场景中的特定局部物件或角色。", desc_en: "💡 Compresses space, best for focusing on specific local details." },
-                { en: "f/1.8 shallow depth of field", zh: "f/1.8大光圈浅景深", desc_zh: "💡 极大地虚化背景，形成强烈的景深效果，视觉中心完全聚焦在近景主体上。", desc_en: "💡 Heavy background blur, strictly focuses on the foreground subject." },
-                { en: "GoPro fisheye lens", zh: "GoPro鱼眼镜头", desc_zh: "💡 极强的边缘透视畸变，带来夸张的视觉冲击和极强的动感（通常带暗角）。", desc_en: "💡 Strong edge distortion, highly dynamic and impactful." },
-                { en: "Tilt-shift lens", zh: "移轴镜头", desc_zh: "💡 只有中间清晰，上下模糊。营造出一种“微缩沙盘模型”的独特玩具感。", desc_en: "💡 Creates a unique 'miniature diorama' or toy-like feel." },
-                { en: "CCTV security camera view", zh: "安防监控视角", desc_zh: "💡 带有画面畸变、噪点和边缘发暗，极度适合赛博朋克或惊悚氛围。", desc_en: "💡 Includes distortion and noise, perfect for cyberpunk or horror." }
+                { en: "2.5D side-scrolling game level", zh: "2.5D横版过关" },
+                { en: "isometric projection", zh: "等距俯视" },
+                { en: "first-person view", zh: "第一人称视角" },
+                { en: "Cinematic wide angle", zh: "电影级广角" },
+                { en: "Low-angle shot", zh: "低角度/仰拍" },
+                { en: "Bird's-eye view", zh: "鸟瞰视角" }
             ],
             scene: [
-                { en: "massive mechanical junkyard", zh: "巨大机械废铁厂", desc_zh: "💡 充满生锈金属、堆积如山的工业废料，适合呈现硬核工业或废土末日感。", desc_en: "💡 Filled with rusted metal and industrial waste, perfect for hardcore post-apocalyptic themes." },
-                { en: "abandoned cyberpunk slum", zh: "废弃赛博贫民窟", desc_zh: "💡 强调无序的建筑堆叠、破败感与高科技设备的反差（High Tech, Low Life）。", desc_en: "💡 Emphasizes chaotic architecture and High Tech, Low Life contrast." },
-                { en: "ancient temple ruins", zh: "远古神庙废墟", desc_zh: "💡 常伴有风化的石雕、神秘的符号和被自然植被重新吞噬的遗迹。", desc_en: "💡 Features weathered stone, mysterious symbols, and nature reclaiming the ruins." }
+                { en: "Overgrown ancient ruins", zh: "被植被掩埋的古代遗迹" },
+                { en: "Soaring gothic cathedral", zh: "高耸的哥特式教堂" },
+                { en: "Deserted urban highway", zh: "荒废的城市高速路" },
+                { en: "Cloud-piercing daoist sect", zh: "直冲云霄的仙门宗派" },
+                { en: "Eroded rammed-earth fortress walls weathered by relentless sandstorms", zh: "风沙侵蚀的边关遗址" }
             ],
             time: [
-                { en: "dawn", zh: "黎明", desc_zh: "💡 太阳未出，天光微亮，色调偏冷蓝，适合表现清冷、宁静或悬疑的氛围。", desc_en: "💡 Pre-sun, cool blue tones, ideal for quiet or mysterious atmospheres." },
-                { en: "early morning", zh: "清晨", desc_zh: "💡 阳光初现，带有淡淡的暖色和通透的晨雾，充满生机与希望感。", desc_en: "💡 Gentle warm light with morning mist, evoking hope and vitality." },
-                { en: "noon", zh: "正午", desc_zh: "💡 光源几乎垂直，阴影短促且边缘锐利，色彩对比度和饱和度极高。", desc_en: "💡 Top-down harsh light, sharp shadows, high color contrast." },
-                { en: "dusk", zh: "黄昏", desc_zh: "💡 太阳刚落山，天空呈现紫粉色到深蓝色的完美过渡，极具情绪与史诗感。", desc_en: "💡 Post-sunset, purple to deep blue sky gradient, highly emotional and epic." },
-                { en: "sunset", zh: "日落", desc_zh: "💡 强烈的逆光和剪影效果，漫天红霞，适合表现苍凉、悲壮或壮丽的收尾。", desc_en: "💡 Strong backlighting/silhouettes, red skies, perfect for dramatic moments." },
-                { en: "night", zh: "夜晚", desc_zh: "💡 强调人造光源（如路灯、霓虹灯、火把）作为主要照明，反差强烈。", desc_en: "💡 Emphasizes artificial light sources (neon, torches) with high contrast." },
-                { en: "midnight", zh: "深夜", desc_zh: "💡 极暗的基调，通常依靠月光（冷色调）勾勒物体边缘，幽深且神秘。", desc_en: "💡 Very dark, relies on cold moonlight for rim lighting, deep and mysterious." }
+                { en: "dawn", zh: "黎明" },
+                { en: "early morning", zh: "清晨" },
+                { en: "noon", zh: "正午" },
+                { en: "dusk", zh: "黄昏" },
+                { en: "sunset", zh: "日落" },
+                { en: "night", zh: "夜晚" },
+                { en: "midnight", zh: "深夜" },
+                { en: "sandstorm", zh: "沙尘暴" },
+                { en: "rainstorm", zh: "暴雨" },
+                { en: "foggy", zh: "浓雾" }
             ],
             material: [
-                { en: "realistic PBR materials", zh: "写实PBR材质", desc_zh: "💡 基于物理的渲染(Physically Based Rendering)，严格遵循现实的粗糙度、金属度和光线反射规律，质感极其逼真。", desc_en: "💡 Physically Based Rendering, strict adherence to real-world roughness and metallicity." },
-                { en: "stylized PBR materials", zh: "风格化PBR材质", desc_zh: "💡 保留了真实的物理光影反射，但表面纹理经过了艺术化概括与夸张（如《双城之战》《守望先锋》）。", desc_en: "💡 Accurate physical lighting, but textures are artistically simplified (e.g., Arcane style)." }
+                { en: "realistic PBR materials", zh: "写实PBR材质" },
+                { en: "stylized PBR materials", zh: "风格化PBR材质" }
             ],
             details: [
-                { en: "broken android bodies", zh: "破碎的仿生人躯体", desc_zh: "💡 强化赛博朋克或《尼尔》风格的末日叙事感，带来视觉冲击和故事悬念。", desc_en: "💡 Enhances cyberpunk or NieR-style narrative storytelling." },
-                { en: "rusted giant gears", zh: "生锈的巨大齿轮", desc_zh: "💡 蒸汽朋克或废土场景的核心视觉锚点，增加机械的厚重感和历史沧桑感。", desc_en: "💡 Core visual anchor for steampunk/wasteland, adds mechanical weight." },
-                { en: "glowing green moss", zh: "发光的绿色苔藓", desc_zh: "💡 为死寂的废墟注入异星生机，常用于点缀冷色调场景，提供对比色和自发光。", desc_en: "💡 Injects alien life into dead ruins, provides bioluminescent color contrast." }
+                { en: "broken android bodies", zh: "破碎的仿生人躯体" },
+                { en: "rusted giant gears", zh: "生锈的巨大齿轮" },
+                { en: "glowing green moss", zh: "发光的绿色苔藓" }
             ],
             lighting: [
-                { en: "God rays filtering through", zh: "神明光/丁达尔", desc_zh: "💡 穿透云层、树冠或窗户的显著光束，常用于营造神圣、宏大或强烈的空间纵深感。", desc_en: "💡 Distinct light shafts, creates a divine, epic, or highly deep spatial feel." },
-                { en: "Volumetric lighting", zh: "体积光", desc_zh: "💡 模拟光线在空气介质（如灰尘、雾气）中散射的效果，让光线具有实质的'体积感'。", desc_en: "💡 Simulates light scattering in dust/fog, giving light a physical 'volume'." },
-                { en: "Rim lighting", zh: "轮廓光", desc_zh: "💡 从物体正后方打来的边缘高光，能有效将主体（如机械轮廓）与暗背景完美剥离。", desc_en: "💡 Edge highlight from behind, separates subject perfectly from dark background." },
-                { en: "Dappled sunlight", zh: "斑驳阳光/林间光影", desc_zh: "💡 光线穿过树叶或缝隙洒在地面的碎片化光斑，让画面充满生机与静谧的氛围。", desc_en: "💡 Fragmented light spots through leaves/gaps, creates a tranquil mood." },
-                { en: "Overcast lighting", zh: "柔和漫反射", desc_zh: "💡 类似阴天的光照，没有强烈的投影，色彩还原度极高，适合平实且清晰地展现场景细节。", desc_en: "💡 Soft, shadowless light like an overcast day, perfect for clear detail showcase." },
-                { en: "Golden Hour", zh: "黄金时刻", desc_zh: "💡 摄影界的绝佳打光时间（日出后或日落前），光线柔和且呈现绝美的金橙色暖调。", desc_en: "💡 Best photography time, soft and beautiful golden-orange warm tones." },
-                { en: "Blue Hour", zh: "蓝色时刻", desc_zh: "💡 太阳落在地平线以下的短暂时间，天空呈现深邃迷人的蓝调，极具电影感。", desc_en: "💡 Deep, cinematic blue tones just before sunrise or after sunset." },
-                { en: "Clear transparency", zh: "极高透明度", desc_zh: "💡 强调玻璃、水体或晶体的透光与折射质感，让画面显得极度清澈、高级。", desc_en: "💡 Emphasizes light passing through water/glass, high-end and crystal clear." }
+                { en: "God rays filtering through", zh: "神明光/丁达尔" },
+                { en: "Volumetric lighting", zh: "体积光" },
+                { en: "Rim lighting", zh: "轮廓光" },
+                { en: "Dappled sunlight", zh: "斑驳阳光/林间光影" },
+                { en: "Overcast lighting", zh: "柔和漫反射" },
+                { en: "Golden Hour", zh: "黄金时刻" },
+                { en: "Blue Hour", zh: "蓝色时刻" },
+                { en: "Clear transparency", zh: "极高透明度" }
             ],
             style: [
-                { en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染", desc_zh: "💡 带有虚幻5引擎特有的 Lumen 全局光和 Nanite 高精模型特征，画面极具次世代 3A 游戏质感。", desc_en: "💡 Carries UE5's signature Lumen and Nanite characteristics, next-gen 3A look." },
-                { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格", desc_zh: "💡 高完成度的二次元写实风，特征是清透的高级灰调色、精细的材质和略带冷峻的废土科技感。", desc_en: "💡 High-tier anime realism, known for clear grey tones and bleak sci-fi feel." },
-                { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格", desc_zh: "💡 颓废的美感，褪色/低饱和度的色彩倾向，铁锈机械与茂盛自然植被的绝美交织。", desc_en: "💡 Decadent beauty, desaturated tones, rusted mechs intertwined with lush nature." },
-                { en: "Anime Background Art", zh: "日本动画背景美术", desc_zh: "💡 传统日式2D动画的背景绘制技法，注重平涂色彩的和谐与水彩笔触感。", desc_en: "💡 Traditional 2D anime background painting techniques, harmonious flat colors." },
-                { en: "Makoto Shinkai Style", zh: "新海诚风格", desc_zh: "💡 极致夸张的美丽天空、极高的画面饱和度、炫目的镜头光晕和细腻的光影变幻。", desc_en: "💡 Exaggerated beautiful skies, high saturation, dazzling lens flares." },
-                { en: "cinematic film grain", zh: "电影级胶片颗粒", desc_zh: "💡 后期处理特效。在画面上覆盖一层细微的噪点，消除强烈的CG数字感，增加复古和真实感。", desc_en: "💡 Post-process. Adds fine noise to remove digital feeling, increasing realism." },
-                { en: "chromatic aberration", zh: "边缘色散", desc_zh: "💡 模拟真实廉价镜头的边缘红蓝/红绿色彩偏移，增加画面的机械实拍感和赛博朋克味。", desc_en: "💡 Simulates lens color shifting, adds mechanical/real-camera feel." },
-                { en: "shallow depth of field", zh: "浅景深", desc_zh: "💡 强烈虚化背景，使观众视线被强制引导至清晰的焦点物体上。", desc_en: "💡 Blurs background to strictly guide audience focus to the subject." },
-                { en: "vignetting", zh: "暗角", desc_zh: "💡 画面四个角落逐渐变暗，用于收拢视线，烘托压抑、专注或复古的氛围。", desc_en: "💡 Darkens the four corners to focus attention and create mood." },
-                { en: "Ray tracing", zh: "光线追踪", desc_zh: "💡 极致还原物理世界中光线的反射、折射与精确阴影，水面和金属反光将极其真实。", desc_en: "💡 Accurately simulates physical light reflections and refractions." },
-                { en: "Ultra-detailed background", zh: "极高精度细节", desc_zh: "💡 强制AI刻画海量的微小元素（如无数的螺丝、砖纹），适合生成大远景。", desc_en: "💡 Forces AI to generate massive amounts of micro-details." },
-                { en: "Global Illumination", zh: "全局光照", desc_zh: "💡 模拟光线在物体之间多次弹射的真实效果，让背光面（暗部）死黑的区域也能展现出通透的细节。", desc_en: "💡 Simulates bounced light, making dark areas look naturally lit and detailed." }
+                { en: "Unreal Engine 5 high-fidelity render", zh: "UE5高保真渲染" },
+                { en: "environment in the art style of Wuthering Waves", zh: "鸣潮风格" },
+                { en: "environment in the art style of NieR: Automata", zh: "尼尔机械纪元风格" },
+                { en: "Anime Background Art", zh: "日本动画背景美术" },
+                { en: "Makoto Shinkai Style", zh: "新海诚风格" },
+                { en: "cinematic film grain", zh: "电影级胶片颗粒" },
+                { en: "chromatic aberration", zh: "边缘色散" },
+                { en: "shallow depth of field", zh: "浅景深" },
+                { en: "vignetting", zh: "暗角" },
+                { en: "Ray tracing", zh: "光线追踪" },
+                { en: "Ultra-detailed background", zh: "极高精度细节" },
+                { en: "Global Illumination", zh: "全局光照" }
             ],
             negative: [
-                { en: "people", zh: "人物", desc_zh: "💡 强制AI不要在场景中生成任何人类，保持纯粹的环境空镜。", desc_en: "💡 Forces AI to exclude any humans, keeping it a pure environment shot." },
-                { en: "text", zh: "文字", desc_zh: "💡 规避画面中出现AI生成的乱码英文或奇怪招牌。", desc_en: "💡 Prevents AI from generating gibberish text or weird signs." },
-                { en: "watermark", zh: "水印", desc_zh: "💡 规避AI抓取网图素材时带入的摄影师署名或网站Logo。", desc_en: "💡 Prevents stock photo watermarks or photographer signatures." },
-                { en: "UI", zh: "UI界面", desc_zh: "💡 规避把画面当成游戏截图而生成的假血条、技能栏等界面元素。", desc_en: "💡 Prevents generation of fake health bars or game UI." },
-                { en: "blur", zh: "模糊", desc_zh: "💡 强制要求整个画面保持锐利，避免大面积的涂抹感。", desc_en: "💡 Forces the entire image to stay sharp, avoiding smudgy rendering." },
-                { en: "low quality", zh: "低画质", desc_zh: "💡 基础负面词，规避分辨率低、像素渣的生成结果。", desc_en: "💡 Basic negative prompt to avoid pixelated or bad generations." },
-                { en: "animals", zh: "动物", desc_zh: "💡 规避画面中出现飞鸟、野狗等可能破坏孤寂氛围的生物。", desc_en: "💡 Excludes birds/dogs that might ruin a desolate mood." }
+                { en: "people", zh: "人物" },
+                { en: "text", zh: "文字" },
+                { en: "watermark", zh: "水印" },
+                { en: "UI", zh: "UI界面" },
+                { en: "blur", zh: "模糊" },
+                { en: "low quality", zh: "低画质" },
+                { en: "animals", zh: "动物" }
             ]
         };
 
         const MJ_PARAMS_CONFIG = [
-            { param: "--ar 16:9", zh: "横屏环境 16:9", en: "Env Ratio 16:9", desc_zh: "💡 设定画面为16:9宽屏，最适合全景和场景环境。", desc_en: "💡 16:9 widescreen ratio, best for environments." },
-            { param: "--ar 9:16", zh: "竖屏角色 9:16", en: "Portrait 9:16", desc_zh: "💡 设定画面为9:16竖屏，最适合角色立绘和单体展示。", desc_en: "💡 9:16 portrait ratio, best for characters." },
-            { param: "--v 7.0", zh: "V7.0 写实模型", en: "V7.0 Realism", desc_zh: "💡 调用最新高保真写实模型，语义与光影更强。", desc_en: "💡 Call the latest high-fidelity realism model with better semantics." },
-            { param: "--niji 7", zh: "Niji7 二次元", en: "Niji7 Anime", desc_zh: "💡 调用最新动漫与二次元插画专属模型。", desc_en: "💡 Call the latest dedicated anime & illustration model." },
-            { param: "--stylize 250", zh: "中等风格化 (250)", en: "Stylize 250", desc_zh: "💡 提高AI的美学修饰程度，让画面更有艺术感。", desc_en: "💡 Increase AI's aesthetic styling for a more artistic look." },
-            { param: "--stylize 750", zh: "极高风格化 (750)", en: "Stylize 750", desc_zh: "💡 强制让AI极大程度地美化画面，色彩和光影会极其夸张。", desc_en: "💡 Extreme aesthetic styling, heavily beautified lighting/color." },
-            { param: "--chaos 20", zh: "创意发散 (Chaos 20)", en: "Chaos 20", desc_zh: "💡 提高初始四张网格图的构图差异性，适合用来找灵感。", desc_en: "💡 Increase variety across the 4 grid images, good for brainstorming." },
-            { param: "--weird 200", zh: "奇特构图 (Weird)", en: "Weird 200", desc_zh: "💡 让AI生成前所未见、突破常规审美的奇特画面。", desc_en: "💡 Force AI to generate unconventional and strange compositions." },
-            { param: "--tile", zh: "无缝材质贴图", en: "Seamless Tile", desc_zh: "💡 生成首尾相接、可无限拼接的纹理贴图（适合地编做材质）。", desc_en: "💡 Generate repeating, seamless texture patterns." }
+            { param: "--ar 16:9", zh: "横屏环境 16:9", en: "Env Ratio 16:9" },
+            { param: "--ar 9:16", zh: "竖屏角色 9:16", en: "Portrait 9:16" },
+            { param: "--v 7.0", zh: "V7.0 写实模型", en: "V7.0 Realism" },
+            { param: "--niji 7", zh: "Niji7 二次元", en: "Niji7 Anime" },
+            { param: "--stylize 250", zh: "中等风格化 (250)", en: "Stylize 250" },
+            { param: "--stylize 750", zh: "极高风格化 (750)", en: "Stylize 750" },
+            { param: "--chaos 20", zh: "创意发散 (Chaos 20)", en: "Chaos 20" },
+            { param: "--weird 200", zh: "奇特构图 (Weird)", en: "Weird 200" },
+            { param: "--tile", zh: "无缝材质贴图", en: "Seamless Tile" }
         ];
 
         const FIELD_LABELS = {
@@ -223,27 +219,12 @@
         let activeTags = null;
 
         try {
-            let localData = localStorage.getItem('team_prompt_tags_v7');
+            let localData = localStorage.getItem('team_prompt_tags_v8');
             if (localData) {
                 activeTags = JSON.parse(localData);
-                if (!activeTags.time) activeTags.time = JSON.parse(JSON.stringify(DEFAULT_TAGS.time));
-                if (!activeTags.negative) activeTags.negative = JSON.parse(JSON.stringify(DEFAULT_TAGS.negative));
-                
-                for (let category in DEFAULT_TAGS) {
-                    if (activeTags[category]) {
-                        activeTags[category].forEach(activeItem => {
-                            let defaultItem = DEFAULT_TAGS[category].find(d => d.en === activeItem.en);
-                            if (defaultItem && defaultItem.desc_zh && !activeItem.desc_zh) {
-                                activeItem.desc_zh = defaultItem.desc_zh;
-                                activeItem.desc_en = defaultItem.desc_en;
-                            }
-                        });
-                    }
-                }
-                localStorage.setItem('team_prompt_tags_v7', JSON.stringify(activeTags));
             } else {
                 activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
-                localStorage.setItem('team_prompt_tags_v7', JSON.stringify(activeTags));
+                localStorage.setItem('team_prompt_tags_v8', JSON.stringify(activeTags));
             }
         } catch (e) {
             activeTags = JSON.parse(JSON.stringify(DEFAULT_TAGS));
@@ -264,16 +245,8 @@
                             let text = currentLang === 'zh' ? item.zh : item.en;
                             let safeEn = item.en.replace(/'/g, "\\'");
                             let safeZh = item.zh.replace(/'/g, "\\'");
-                            
-                            let descText = "";
-                            if (item.desc_zh && currentLang === 'zh') descText = item.desc_zh;
-                            else if (item.desc_en && currentLang === 'en') descText = item.desc_en;
-                            else if (item.desc) descText = item.desc;
-                            
-                            let titleAttr = descText ? `title="${descText}"` : '';
-                            let descClass = descText ? 'has-desc' : '';
 
-                            return `<span class="tag ${descClass}" ${titleAttr} onclick="toggleTag('${inputId}', '${safeEn}', '${safeZh}')">
+                            return `<span class="tag" onclick="toggleTag('${inputId}', '${safeEn}', '${safeZh}')">
                                         ${text}
                                         <span class="tag-del" onclick="event.stopPropagation(); deleteTag('${key}', ${index})" title="删除此词条">×</span>
                                     </span>`;
@@ -288,8 +261,7 @@
             let mjHtml = '';
             MJ_PARAMS_CONFIG.forEach(item => {
                 let text = currentLang === 'zh' ? `${item.param} (${item.zh})` : `${item.param} (${item.en})`;
-                let desc = currentLang === 'zh' ? item.desc_zh : item.desc_en;
-                mjHtml += `<span class="tag mj-tag has-desc" title="${desc}" onclick="toggleMjTag('${item.param}')">${text}</span>`;
+                mjHtml += `<span class="tag mj-tag" onclick="toggleMjTag('${item.param}')">${text}</span>`;
             });
             document.getElementById('mjTagsContainer').innerHTML = mjHtml;
         }
@@ -392,7 +364,7 @@
         }
 
         function saveTagsToLocal() {
-            localStorage.setItem('team_prompt_tags_v7', JSON.stringify(activeTags));
+            localStorage.setItem('team_prompt_tags_v8', JSON.stringify(activeTags));
             renderAllFields();
             generatePrompt();
         }
@@ -470,7 +442,6 @@
             if (currentEngine === 'gemini') {
                 const pk = document.getElementById("premise").value;
                 
-                // --- 1. 前半句：指令意图 ---
                 if (pk === 'strict') {
                     prompt += (currentLang === 'zh' ? "严格以提供的图像构图和结构为基础。保持所有主要资产的确切透视和布局。请将这张底图细化打磨成一张高精度的" : "Use the provided image composition and structure as a strict base. Maintain the exact perspective and layout of all major assets. Please fully refine and polish this base image into a high-fidelity ");
                     prompt += (p ? p : (currentLang === 'zh' ? "场景" : "environment")) + (currentLang === 'zh' ? "概念图" : " concept art");
@@ -478,14 +449,14 @@
                     else if (!t && !m && !d && !l && !st) prompt += (currentLang === 'zh' ? "，请自由发挥补充真实的细节与光影氛围。" : ", freely improvising realistic details and atmosphere. ");
                     else prompt += (currentLang === 'zh' ? "。" : ". ");
                 } else if (pk === 'time_conversion') {
-                    prompt += (currentLang === 'zh' ? "严格保持原始构图、建筑结构和物体位置。彻底移除原图光源，根据新的时段要求重新计算全局光照、阴影和环境反射。请将这张底图无缝转换为" : "Strictly maintain the original composition, architectural structures, and object placement. Remove all original light sources and recalculate global illumination, shadows, and reflections based on the new time of day. Seamlessly convert this base image into a ");
+                    // 🌟 同步更新：不仅改了“时段和天气”，也去掉了“无缝”
+                    prompt += (currentLang === 'zh' ? "严格保持原始构图、建筑结构和物体位置。彻底移除原图光源，根据新的时段和天气要求重新计算全局光照、阴影和环境反射。请将这张底图转换为" : "Strictly maintain the original composition, architectural structures, and object placement. Remove all original light sources and recalculate global illumination, shadows, and reflections based on the new time and weather conditions. Convert this base image into a ");
                     
-                    // 🌟 完美融合目标时段作为定语
                     if (currentLang === 'zh') {
-                        prompt += t ? `【${t}】的` : "";
+                        prompt += t ? `【${t}】氛围的` : "";
                         prompt += (p ? p : "场景") + "概念图";
                     } else {
-                        prompt += t ? `[${t}] ` : "";
+                        prompt += t ? `[${t}] atmospheric ` : "";
                         prompt += (p ? p : "environment") + " concept art";
                     }
 
@@ -507,7 +478,6 @@
                     }
                 }
 
-                // --- 2. 后半句：绝对隔离拼接逻辑 ---
                 if (pk === 'time_conversion') {
                     if(m) prompt += (currentLang === 'zh' ? `材质要求：${m}。` : `Materials: ${m}. `);
                     if(d) prompt += (currentLang === 'zh' ? `引入新物理细节：${d}。` : `Introduce details: ${d}. `);
